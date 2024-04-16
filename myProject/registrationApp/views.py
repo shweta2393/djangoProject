@@ -1,4 +1,6 @@
 from django.http import HttpResponse
+from django.http import JsonResponse
+from django.core import serializers
 from django.shortcuts import render
 
 # relative import of forms
@@ -9,54 +11,39 @@ def index(request):
     return HttpResponse("Please proceed to the registration page: localhost/reg/")
 
 def create_view(request):
-    # dictionary for initial data with
-    # field names as keys
-    context = {}
-    # add the dictionary during initialization
-    form = RegForm(request.POST or None)
-    if form.is_valid():
-        form.save()
-    context['form'] = form
-    return render(request, "create_view.html", context)
+    data = serializers.serialize('json', PeopleReg.objects.all())
+    # return HttpResponse(data, content_type='application/json')
+    return JsonResponse(data, status=200)
 
 
 def list_view(request):
-    # dictionary for initial data with
-    # field names as keys
-    context = {}
-    # add the dictionary during initialization
-    context["dataset"] = PeopleReg.objects.all()
-    return render(request, "list_view.html", context)
+    # Query the database to get PeopleReg objects
+    queryset = PeopleReg.objects.all()
+    # Serialize the queryset into JSON format
+    data = serialize('json', queryset)
+    # Return JSON response
+    return JsonResponse(data, safe=False)
 
 
 def update_view(request, id):
-    # dictionary for initial data with
-    # field names as keys
     context = {}
-    # fetch the object related to passed id
     obj = get_object_or_404(PeopleReg, id=id)
-    # pass the object as instance in form
     form = RegForm(request.POST or None, instance=obj)
-    # save the data from the form and
-    # redirect to detail_view
     if form.is_valid():
         form.save()
-        return HttpResponseRedirect("/" + id)
-    # add form dictionary to context
-    context["form"] = form
-    return render(request, "update_view.html", context)
-
+        # Return success message as JSON response
+        return JsonResponse({'message': 'Update successful'})
+    # If form is invalid, return form errors as JSON response
+    errors = form.errors.as_json()
+    return JsonResponse({'errors': errors}, status=400)
 
 def delete_view(request, id):
-    # dictionary for initial data with
-    # field names as keys
-    context = {}
-    # fetch the object related to passed id
+    # Fetch the object related to the passed id
     obj = get_object_or_404(PeopleReg, id=id)
     if request.method == "POST":
-        # delete object
+        # Delete object
         obj.delete()
-        # after deleting redirect to
-        # home page
-        return HttpResponseRedirect("/")
-    return render(request, "delete_view.html", context)
+        # Return success message as JSON response
+        return JsonResponse({'message': 'Object deleted successfully'})
+    # If request method is not POST, return error message as JSON response
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
